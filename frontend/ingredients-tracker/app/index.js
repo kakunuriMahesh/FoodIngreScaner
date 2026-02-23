@@ -103,8 +103,8 @@ export default function Scan() {
       });
 
       const response = await axios.post(
-        "http://192.168.1.114:5000/api/scan",
-        // "http://10.52.56.183:5000/api/scan",
+        // "http://192.168.1.114:5000/api/scan",
+        "http://10.32.30.172:5000/api/scan",
         formData,
         {
           headers: { "Content-Type": "multipart/form-data" },
