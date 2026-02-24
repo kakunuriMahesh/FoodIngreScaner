@@ -13,6 +13,8 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import axios from "axios";
 import { useRouter } from "expo-router";
+import MlkitOcr from "expo-mlkit-ocr";
+
 
 // App states: "camera" | "preview" | "results"
 export default function Scan() {
@@ -91,36 +93,78 @@ export default function Scan() {
 
 
   // ─── Upload to backend ───
+  // const uploadImage = async () => {
+  //   try {
+  //     setLoading(true);
+
+  //     const formData = new FormData();
+  //     formData.append("image", {
+  //       uri: image,
+  //       type: "image/jpeg",
+  //       name: "photo.jpg",
+  //     });
+
+  //     const response = await axios.post(
+  //       // "http://192.168.1.114:5000/api/scan",
+  //       "http://10.32.30.172:5000/api/scan",
+  //       formData,
+  //       {
+  //         headers: { "Content-Type": "multipart/form-data" },
+  //       }
+  //     );
+
+  //     setFound(response.data.found || []);
+  //     setMissing(response.data.missing || []);
+  //     setAppState("results");
+  //   } catch (error) {
+  //     console.log("Upload Error:", error);
+  //     Alert.alert("Error", "Failed to scan image. Please try again.");
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
   const uploadImage = async () => {
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
 
-      const formData = new FormData();
-      formData.append("image", {
-        uri: image,
-        type: "image/jpeg",
-        name: "photo.jpg",
-      });
+    // 🔹 Run OCR on device
+    const ocrResult = await MlkitOcr.detectFromUri(image);
 
-      const response = await axios.post(
-        // "http://192.168.1.114:5000/api/scan",
-        "http://10.32.30.172:5000/api/scan",
-        formData,
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-        }
-      );
+    let extractedText = "";
 
-      setFound(response.data.found || []);
-      setMissing(response.data.missing || []);
-      setAppState("results");
-    } catch (error) {
-      console.log("Upload Error:", error);
-      Alert.alert("Error", "Failed to scan image. Please try again.");
-    } finally {
+    ocrResult.forEach(block => {
+      extractedText += block.text + " ";
+    });
+
+    console.log("Extracted Text:", extractedText);
+
+    if (!extractedText.trim()) {
+      Alert.alert("No Text Found", "Please try again with clearer image.");
       setLoading(false);
+      return;
     }
-  };
+
+    // 🔹 Send extracted TEXT (not image) to backend
+    const response = await axios.post(
+      // "http://10.32.30.172:5000/api/scan-text", // <-- change backend route
+      "https://foodingrescanerbackend.onrender.com/api/scan-text",
+      {
+        text: extractedText,
+      }
+    );
+
+    setFound(response.data.found || []);
+    setMissing(response.data.missing || []);
+    setAppState("results");
+
+  } catch (error) {
+    console.log("OCR Error:", error);
+    Alert.alert("Error", "Failed to scan text. Please try again.");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // ─── Add missing ingredients ───
   const addAllMissing = async () => {

@@ -2,9 +2,10 @@ const express = require("express");
 require("dotenv").config();
 const cors = require("cors");
 const connectDB = require("./config/db");
-const ocrRoutes = require("./routes/ocrRoutes");
+// const ocrRoutes = require("./routes/ocrRoutes");
 const ingredientRoutes = require("./routes/ingredientRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const scanRoutes = require("./routes/scanRoutes");
 
 
 const app = express();
@@ -14,7 +15,8 @@ connectDB();
 app.use(cors());
 app.use(express.json());
 
-app.use("/api", ocrRoutes);
+app.use("/api", scanRoutes);
+// app.use("/api", ocrRoutes);
 app.use("/api", adminRoutes);
 app.use("/api", ingredientRoutes);
 app.get("/", (req, res) => {

@@ -52,7 +52,7 @@ export const deleteFromCloudinary = async (url) => {
 
   try {
     // We call our own backend because deletion requires API Secret
-    await axios.post("http://localhost:5000/api/cloudinary/delete", { publicId });
+    await axios.post("https://foodingrescanerbackend.onrender.com/api/cloudinary/delete", { publicId });
   } catch (error) {
     console.error("Error deleting from Cloudinary:", error);
     // Don't throw, just log. Deletion failure shouldn't block the UI flow.
