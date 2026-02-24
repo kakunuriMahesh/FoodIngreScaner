@@ -13,7 +13,11 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import axios from "axios";
 import { useRouter } from "expo-router";
-import MlkitOcr from "expo-mlkit-ocr";
+// import MlkitOcr from "expo-mlkit-ocr";
+// import * as MlkitOcr from "expo-mlkit-ocr";
+import MlkitOcr from 'react-native-mlkit-ocr';
+
+
 
 
 // App states: "camera" | "preview" | "results"
@@ -123,33 +127,146 @@ export default function Scan() {
   //     setLoading(false);
   //   }
   // };
-  const uploadImage = async () => {
+//   const uploadImage = async () => {
+//   try {
+//     setLoading(true);
+
+//     // 🔹 Run OCR on device
+//     const ocrResult = await MlkitOcr.detectFromUri(image);
+
+//     let extractedText = "";
+
+//     ocrResult.forEach(block => {
+//       extractedText += block.text + " ";
+//     });
+
+//     console.log("Extracted Text:", extractedText);
+
+//     if (!extractedText.trim()) {
+//       Alert.alert("No Text Found", "Please try again with clearer image.");
+//       setLoading(false);
+//       return;
+//     }
+
+//     // 🔹 Send extracted TEXT (not image) to backend
+//     const response = await axios.post(
+//       // "http://10.32.30.172:5000/api/scan-text", // <-- change backend route
+//       "https://foodingrescanerbackend.onrender.com/api/scan-text",
+//       {
+//         text: extractedText,
+//       }
+//     );
+
+//     setFound(response.data.found || []);
+//     setMissing(response.data.missing || []);
+//     setAppState("results");
+
+//   } catch (error) {
+//     console.log("OCR Error:", error);
+//     Alert.alert("Error", "Failed to scan text. Please try again.");
+//   } finally {
+//     setLoading(false);
+//   }
+// };
+// const uploadImage = async () => {
+//   try {
+//     setLoading(true);
+
+//     const ocrResult = await MlkitOcr.detectFromUri(image);
+//     console.log("OCR Result:", JSON.stringify(ocrResult, null, 2));
+
+//     let extractedText = "";
+
+//     ocrResult?.blocks?.forEach(block => {
+//       extractedText += block.text + " ";
+//     });
+
+//     console.log("Extracted Text:", extractedText);
+
+//     if (!extractedText.trim()) {
+//       Alert.alert("No Text Found", "Please try again with clearer image.");
+//       return;
+//     }
+
+//     const response = await axios.post(
+//       "https://foodingrescanerbackend.onrender.com/api/scan-text",
+//       {
+//         text: extractedText,
+//       }
+//     );
+
+//     setFound(response.data.found || []);
+//     setMissing(response.data.missing || []);
+//     setAppState("results");
+
+//   } catch (error) {
+//     console.log("OCR Error:", error);
+//     Alert.alert("Error", "Failed to scan text. Please try again.");
+//   } finally {
+//     setLoading(false);
+//   }
+// };
+const uploadImage = async () => {
   try {
     setLoading(true);
 
-    // 🔹 Run OCR on device
     const ocrResult = await MlkitOcr.detectFromUri(image);
 
-    let extractedText = "";
+    // Convert object with numeric keys to real array
+    const blocks = Array.isArray(ocrResult)
+      ? ocrResult
+      : Object.values(ocrResult || {});
 
-    ocrResult.forEach(block => {
-      extractedText += block.text + " ";
+    let fullText = "";
+
+    // Collect all block text
+    blocks.forEach((block) => {
+      if (block?.text && typeof block.text === 'string') {
+        fullText += block.text + " ";
+      }
     });
 
-    console.log("Extracted Text:", extractedText);
+    // Clean full text
+    fullText = fullText
+      .replace(/\n+/g, " ")           // newlines → space
+      .replace(/\s+/g, " ")           // collapse spaces
+      .replace(/\./g, ",")            // treat period as comma (common in lists)
+      .replace(/\s*,\s*/g, ",")       // normalize commas
+      .trim();
 
-    if (!extractedText.trim()) {
-      Alert.alert("No Text Found", "Please try again with clearer image.");
-      setLoading(false);
+    console.log("Clean full text:", fullText);
+
+    // Split into array of ingredients
+    let ingredientsArray = fullText
+      .split(/,\s*/)                    // split on comma + optional spaces
+      .map(item => item.trim())         // trim each item
+      .filter(item => item.length > 0)  // remove empty
+      .filter(item => !/^\d+%$/.test(item)); // optional: remove standalone percentages like "2%"
+
+    // Optional: remove common prefixes/suffixes like "CONTAINS:", "OF:", "LESS THAN"
+    ingredientsArray = ingredientsArray.map(item => {
+      return item
+        .replace(/^OF:\s*/i, "")
+        .replace(/^CONTAINS:\s*/i, "")
+        .replace(/LESS THAN \d+%\s*/i, "")
+        .replace(/\s*\(.*?\)\s*/g, "")   // remove parentheses content
+        .trim();
+    }).filter(Boolean);
+
+    console.log("Ingredients Array:", ingredientsArray);
+
+    if (ingredientsArray.length === 0) {
+      Alert.alert("No Ingredients Found", "Please try again with a clearer image.");
       return;
     }
 
-    // 🔹 Send extracted TEXT (not image) to backend
+    // Send array to backend instead of single string
     const response = await axios.post(
-      // "http://10.32.30.172:5000/api/scan-text", // <-- change backend route
       "https://foodingrescanerbackend.onrender.com/api/scan-text",
-      {
-        text: extractedText,
+      // "http://192.168.1.119:5000/api/scan-text",
+      { 
+        ingredients: ingredientsArray   // ← changed key name to make it clear
+        // or keep { text: fullText } if backend expects string — your choice
       }
     );
 
@@ -158,12 +275,13 @@ export default function Scan() {
     setAppState("results");
 
   } catch (error) {
-    console.log("OCR Error:", error);
+    console.error("OCR / Upload Error:", error);
     Alert.alert("Error", "Failed to scan text. Please try again.");
   } finally {
     setLoading(false);
   }
 };
+
 
 
   // ─── Add missing ingredients ───
