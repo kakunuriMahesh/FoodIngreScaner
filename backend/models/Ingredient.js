@@ -5,6 +5,7 @@ const IngredientSchema = new mongoose.Schema({
     type: String,
     required: true,
     trim: true,
+    unique: true,   // 🔥 prevent duplicates at DB level
   },
   icon: {
     type: String,
@@ -33,5 +34,6 @@ const IngredientSchema = new mongoose.Schema({
     },
   },
 }, { timestamps: true, strict: false });
-
+// 🔥 create unique index
+IngredientSchema.index({ name: 1 }, { unique: true });
 module.exports = mongoose.model("Ingredient", IngredientSchema, "ingredients");

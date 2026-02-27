@@ -97,104 +97,172 @@ const cleanIngredient = (str) => {
 // ─────────────────────────────────────────────
 router.post("/scan-text", async (req, res) => {
   try {
-    const { text, ingredients } = req.body;
+    const { text } = req.body;
 
-    // ── Input validation ────────────────────────────────────────
-    if (!text && (!Array.isArray(ingredients) || ingredients.length === 0)) {
-      return res.status(400).json({
-        success: false,
-        message: "Either 'text' (string) or 'ingredients' (array) is required",
-      });
+    if (!text) {
+      return res.status(400).json({ message: "Text is required" });
     }
 
-    // ── Prepare input ingredients array ─────────────────────────
-    let inputIngredients = [];
+    const cleanedText = cleanIngredientText(text);
 
-    if (Array.isArray(ingredients) && ingredients.length > 0) {
-      // Frontend already sent an array → clean each item
-      inputIngredients = ingredients
-        .map(cleanIngredient)
-        .filter(Boolean)
-        .filter((item) => item.length > 1);
-    } else if (typeof text === "string" && text.trim()) {
-      // Classic string input → clean & split
-      const cleaned = cleanIngredient(text);
-      inputIngredients = cleaned
-        .split(",")
-        .map((i) => i.trim())
-        .filter((i) => i.length > 1);
-    }
+    const inputIngredients = cleanedText
+      .split(",")
+      .map((i) => i.trim())
+      .filter((i) => i.length > 2);
 
-    if (inputIngredients.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "No valid ingredients found after cleaning",
-      });
-    }
-
-    // ── Load all ingredients from DB (lean for speed) ───────────
     const dbIngredients = await Ingredient.find({}).lean();
 
-    if (dbIngredients.length === 0) {
-      return res.status(200).json({
-        success: true,
-        found: [],
-        missing: inputIngredients,
-        message: "No ingredients in database",
-      });
-    }
-
-    // ── Setup Fuse.js for fuzzy search ──────────────────────────
     const fuse = new Fuse(dbIngredients, {
       keys: ["name"],
-      threshold: 0.35,          // 0.0 = perfect match, 0.4 = quite loose
-      ignoreLocation: true,
-      includeScore: true,
-      shouldSort: true,
+      threshold: 0.3,
     });
 
-    const found = [];
-    const missing = [];
+    const foundMap = {};
+    const missingMap = {};
 
-    // ── Match each input ingredient ─────────────────────────────
     inputIngredients.forEach((ingredient) => {
-      // 1. Try exact substring match first (fast)
-      const directMatch = dbIngredients.find((item) =>
+      const direct = dbIngredients.find((item) =>
         item.name.toLowerCase().includes(ingredient)
       );
 
-      if (directMatch) {
-        found.push(directMatch);
-        return;
+      let matchedItem = null;
+
+      if (direct) {
+        matchedItem = direct;
+      } else {
+        const fuzzy = fuse.search(ingredient);
+        if (fuzzy.length > 0) {
+          matchedItem = fuzzy[0].item;
+        }
       }
 
-      // 2. Fuzzy search if no direct match
-      const fuzzyResults = fuse.search(ingredient);
+      if (matchedItem) {
+        const key = matchedItem.name.toLowerCase();
 
-      if (fuzzyResults.length > 0 && fuzzyResults[0].score < 0.4) {
-        // Take the best match if score is good enough
-        found.push(fuzzyResults[0].item);
+        if (!foundMap[key]) {
+          foundMap[key] = { ...matchedItem, count: 1 };
+        } else {
+          foundMap[key].count += 1;
+        }
       } else {
-        missing.push(ingredient);
+        if (!missingMap[ingredient]) {
+          missingMap[ingredient] = { name: ingredient, count: 1 };
+        } else {
+          missingMap[ingredient].count += 1;
+        }
       }
     });
 
-    // ── Response ────────────────────────────────────────────────
-    return res.json({
-      success: true,
-      found,          // array of matched Ingredient documents
-      missing,        // array of strings that weren't matched
-      inputCount: inputIngredients.length,
+    res.json({
+      found: Object.values(foundMap),
+      missing: Object.values(missingMap),
     });
 
   } catch (error) {
-    console.error("Scan-text error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Server error while processing ingredients",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
+    console.error("Scan Error:", error);
+    res.status(500).json({ message: "Server error" });
   }
 });
+// router.post("/scan-text", async (req, res) => {
+//   try {
+//     const { text, ingredients } = req.body;
+
+//     // ── Input validation ────────────────────────────────────────
+//     if (!text && (!Array.isArray(ingredients) || ingredients.length === 0)) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Either 'text' (string) or 'ingredients' (array) is required",
+//       });
+//     }
+
+//     // ── Prepare input ingredients array ─────────────────────────
+//     let inputIngredients = [];
+
+//     if (Array.isArray(ingredients) && ingredients.length > 0) {
+//       // Frontend already sent an array → clean each item
+//       inputIngredients = ingredients
+//         .map(cleanIngredient)
+//         .filter(Boolean)
+//         .filter((item) => item.length > 1);
+//     } else if (typeof text === "string" && text.trim()) {
+//       // Classic string input → clean & split
+//       const cleaned = cleanIngredient(text);
+//       inputIngredients = cleaned
+//         .split(",")
+//         .map((i) => i.trim())
+//         .filter((i) => i.length > 1);
+//     }
+
+//     if (inputIngredients.length === 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "No valid ingredients found after cleaning",
+//       });
+//     }
+
+//     // ── Load all ingredients from DB (lean for speed) ───────────
+//     const dbIngredients = await Ingredient.find({}).lean();
+
+//     if (dbIngredients.length === 0) {
+//       return res.status(200).json({
+//         success: true,
+//         found: [],
+//         missing: inputIngredients,
+//         message: "No ingredients in database",
+//       });
+//     }
+
+//     // ── Setup Fuse.js for fuzzy search ──────────────────────────
+//     const fuse = new Fuse(dbIngredients, {
+//       keys: ["name"],
+//       threshold: 0.35,          // 0.0 = perfect match, 0.4 = quite loose
+//       ignoreLocation: true,
+//       includeScore: true,
+//       shouldSort: true,
+//     });
+
+//     const found = [];
+//     const missing = [];
+
+//     // ── Match each input ingredient ─────────────────────────────
+//     inputIngredients.forEach((ingredient) => {
+//       // 1. Try exact substring match first (fast)
+//       const directMatch = dbIngredients.find((item) =>
+//         item.name.toLowerCase().includes(ingredient)
+//       );
+
+//       if (directMatch) {
+//         found.push(directMatch);
+//         return;
+//       }
+
+//       // 2. Fuzzy search if no direct match
+//       const fuzzyResults = fuse.search(ingredient);
+
+//       if (fuzzyResults.length > 0 && fuzzyResults[0].score < 0.4) {
+//         // Take the best match if score is good enough
+//         found.push(fuzzyResults[0].item);
+//       } else {
+//         missing.push(ingredient);
+//       }
+//     });
+
+//     // ── Response ────────────────────────────────────────────────
+//     return res.json({
+//       success: true,
+//       found,          // array of matched Ingredient documents
+//       missing,        // array of strings that weren't matched
+//       inputCount: inputIngredients.length,
+//     });
+
+//   } catch (error) {
+//     console.error("Scan-text error:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Server error while processing ingredients",
+//       error: process.env.NODE_ENV === "development" ? error.message : undefined,
+//     });
+//   }
+// });
 
 module.exports = router;

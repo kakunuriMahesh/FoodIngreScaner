@@ -287,7 +287,8 @@ const uploadImage = async () => {
   // ─── Add missing ingredients ───
   const addAllMissing = async () => {
     try {
-      await axios.post("http://192.168.1.114:5000/api/add-ingredient", {
+      await axios.post("https://foodingrescanerbackend.onrender.com/api/add-ingredient", {
+      // await axios.post("http://192.168.1.119:5000/api/add-ingredient", {
         ingredients: missing,
       });
 
@@ -412,7 +413,7 @@ const uploadImage = async () => {
                     ) : (
                       <Text style={styles.itemIconEmoji}>{item.icon || "🧪"}</Text>
                     )}
-                    <Text style={styles.foundName}>{item.name}</Text>
+                    <Text style={styles.foundName}>{item.name} {item.count > 1 && `(x${item.count})`}</Text>
                   </View>
                   <TouchableOpacity
                     style={styles.tipBtn}

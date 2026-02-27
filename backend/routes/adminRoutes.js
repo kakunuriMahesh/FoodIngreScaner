@@ -94,17 +94,49 @@ router.post("/admin/ingredients", async (req, res) => {
   try {
     const data = req.body;
 
-    // If array → insert many
+    // 🔹 BULK INSERT
     if (Array.isArray(data)) {
-      const inserted = await Ingredient.insertMany(data);
+
+      // Normalize names
+      const normalizedData = data.map(item => ({
+        ...item,
+        name: item.name.trim().toLowerCase()
+      }));
+
+      // Remove duplicates inside request itself
+      const uniqueMap = {};
+      normalizedData.forEach(item => {
+        uniqueMap[item.name] = item;
+      });
+
+      const uniqueArray = Object.values(uniqueMap);
+
+      const inserted = await Ingredient.insertMany(uniqueArray, {
+        ordered: false
+      });
+
       return res.json({
-        message: "Multiple ingredients added successfully",
-        count: inserted.length
+        message: "Bulk insert completed",
+        inserted: inserted.length
       });
     }
 
-    // If single object → insert one
-    const newIngredient = new Ingredient(data);
+    // 🔹 SINGLE INSERT
+    const normalizedName = data.name.trim().toLowerCase();
+
+    const existing = await Ingredient.findOne({ name: normalizedName });
+
+    if (existing) {
+      return res.status(400).json({
+        message: "Ingredient already exists"
+      });
+    }
+
+    const newIngredient = new Ingredient({
+      ...data,
+      name: normalizedName
+    });
+
     await newIngredient.save();
 
     res.json({
@@ -112,15 +144,49 @@ router.post("/admin/ingredients", async (req, res) => {
     });
 
   } catch (err) {
+
+    // Handle duplicate key error
+    if (err.code === 11000) {
+      return res.status(400).json({
+        message: "Duplicate ingredient detected"
+      });
+    }
+
     res.status(500).json({ error: err.message });
   }
 });
+// router.post("/admin/ingredients", async (req, res) => {
+//   try {
+//     const data = req.body;
+
+//     // If array → insert many
+//     if (Array.isArray(data)) {
+//       const inserted = await Ingredient.insertMany(data);
+//       return res.json({
+//         message: "Multiple ingredients added successfully",
+//         count: inserted.length
+//       });
+//     }
+
+//     // If single object → insert one
+//     const newIngredient = new Ingredient(data);
+//     await newIngredient.save();
+
+//     res.json({
+//       message: "Ingredient added successfully"
+//     });
+
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// });
 
 
 
 // ==============================
 // 6️⃣ Update Ingredient
 // ==============================
+
 router.put("/admin/ingredients/:id", async (req, res) => {
   try {
     await Ingredient.findByIdAndUpdate(req.params.id, req.body);
