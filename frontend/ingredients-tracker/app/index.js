@@ -276,8 +276,8 @@ const uploadImage = async () => {
     }
 
     const response = await axios.post(
-      // "https://foodingrescanerbackend.onrender.com/api/scan-text",
-      "http://192.168.1.105:5000/api/scan-text",
+      "https://foodingrescanerbackend.onrender.com/api/scan-text",
+      // "http://192.168.1.105:5000/api/scan-text",
       { text: uniqueIngredients.join(", ") }
     );
 
@@ -304,8 +304,8 @@ const uploadImage = async () => {
   // ─── Add missing ingredients ───
   const addAllMissing = async () => {
     try {
-      // await axios.post("https://foodingrescanerbackend.onrender.com/api/add-ingredient", {
-      await axios.post("http://192.168.1.105:5000/api/add-ingredient", {
+      await axios.post("https://foodingrescanerbackend.onrender.com/api/add-ingredient", {
+      // await axios.post("http://192.168.1.105:5000/api/add-ingredient", {
         ingredients: missing,
       });
 
