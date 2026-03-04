@@ -97,13 +97,27 @@ const cleanIngredient = (str) => {
 // ─────────────────────────────────────────────
 router.post("/scan-text", async (req, res) => {
   try {
-    const { text } = req.body;
+    // body can contain { text: "..." } or { ingredients: ["...", "..."] }
+    const { text, ingredients } = req.body;
 
-    if (!text) {
-      return res.status(400).json({ message: "Text is required" });
+    if (!text && !Array.isArray(ingredients)) {
+      return res.status(400).json({ message: "Text or ingredients array is required" });
     }
 
-    const cleanedText = cleanIngredientText(text);
+    // produce a single cleaned comma-separated string regardless of input form
+    let cleanedText;
+    if (Array.isArray(ingredients)) {
+      cleanedText = ingredients
+        .map((i) => cleanIngredient(i))
+        .filter(Boolean)
+        .join(",");
+    } else {
+      cleanedText = text
+        .split(",")
+        .map((i) => cleanIngredient(i))
+        .filter(Boolean)
+        .join(",");
+    }
 
     const inputIngredients = cleanedText
       .split(",")
@@ -155,7 +169,7 @@ router.post("/scan-text", async (req, res) => {
 
     res.json({
       found: Object.values(foundMap),
-      missing: Object.values(missingMap),
+      missing: Object.keys(missingMap), // return array of ingredient names only
     });
 
   } catch (error) {

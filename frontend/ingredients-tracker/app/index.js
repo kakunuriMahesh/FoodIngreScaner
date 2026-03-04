@@ -16,6 +16,7 @@ import { useRouter } from "expo-router";
 // import MlkitOcr from "expo-mlkit-ocr";
 // import * as MlkitOcr from "expo-mlkit-ocr";
 import MlkitOcr from 'react-native-mlkit-ocr';
+import InfoMenu from "../components/InfoMenu";
 
 
 
@@ -210,70 +211,86 @@ const uploadImage = async () => {
   try {
     setLoading(true);
 
-    const ocrResult = await MlkitOcr.detectFromUri(image);
+    if (!MlkitOcr || typeof MlkitOcr.detectFromUri !== 'function') {
+      console.error('OCR not available', MlkitOcr);
+      Alert.alert('Error', 'OCR module not ready. Please build the dev client again.');
+      setLoading(false);
+      return;
+    }
 
-    // Convert object with numeric keys to real array
-    const blocks = Array.isArray(ocrResult)
-      ? ocrResult
-      : Object.values(ocrResult || {});
+    const ocrResult = await MlkitOcr.detectFromUri(image);
+    const blocks = Array.isArray(ocrResult) ? ocrResult : Object.values(ocrResult || {});
 
     let fullText = "";
-
-    // Collect all block text
-    blocks.forEach((block) => {
-      if (block?.text && typeof block.text === 'string') {
-        fullText += block.text + " ";
-      }
+    blocks.forEach((b) => {
+      if (b?.text && typeof b.text === 'string') fullText += b.text + " ";
     });
 
-    // Clean full text
+    // Step 1: Aggressive multi-pass cleaning
     fullText = fullText
-      .replace(/\n+/g, " ")           // newlines → space
-      .replace(/\s+/g, " ")           // collapse spaces
-      .replace(/\./g, ",")            // treat period as comma (common in lists)
-      .replace(/\s*,\s*/g, ",")       // normalize commas
+      .replace(/\n+/g, ",")              // newlines → comma
+      .replace(/([a-z])\s+([A-Z])/g, "$1,$2") // camelCase boundaries → comma
+      .replace(/([a-z])\s+\(/g, "$1,(")  // before paren → add comma
+      .replace(/\)\s+([A-Z])/g, "),$ 1") // after paren → add comma
+      .replace(/([\d%])\s+([A-Z])/g, "$1,$2") // numbers before caps → comma
+      .replace(/[•·*]/g, ",")        // bullets → comma
+      .replace(/\s+/g, " ")              // collapse spaces
+      .replace(/\./g, ",")               // period → comma
+      .replace(/\s*,\s*/g, ",")          // normalize commas
+      .replace(/^[\d\s]*ingredients?:\s*/i, "") // drop header
       .trim();
 
     console.log("Clean full text:", fullText);
 
-    // Split into array of ingredients
+    // Step 2: Split on ALL delimiters and sanitize each item
     let ingredientsArray = fullText
-      .split(/,\s*/)                    // split on comma + optional spaces
-      .map(item => item.trim())         // trim each item
-      .filter(item => item.length > 0)  // remove empty
-      .filter(item => !/^\d+%$/.test(item)); // optional: remove standalone percentages like "2%"
+      .split(/[,\n;/&]+/)
+      .map((i) => i.trim())
+      .map((i) =>
+        i
+          .replace(/\([^)]*\)/g, "")
+          .replace(/\[[^\]]*\]/g, "")
+          .replace(/\{[^}]*\}/g, "")
+          .replace(/\d+%\s*/g, "")
+          .replace(/^(of|contains?|less than|and|or|the)\s*/i, "")
+          .trim()
+      )
+      .filter((i) => i && i.length > 2);
 
-    // Optional: remove common prefixes/suffixes like "CONTAINS:", "OF:", "LESS THAN"
-    ingredientsArray = ingredientsArray.map(item => {
-      return item
-        .replace(/^OF:\s*/i, "")
-        .replace(/^CONTAINS:\s*/i, "")
-        .replace(/LESS THAN \d+%\s*/i, "")
-        .replace(/\s*\(.*?\)\s*/g, "")   // remove parentheses content
-        .trim();
-    }).filter(Boolean);
+    // Step 3: Deduplicate (case-insensitive)
+    const seen = new Set();
+    const uniqueIngredients = [];
+    ingredientsArray.forEach((i) => {
+      const norm = i.toUpperCase();
+      if (!seen.has(norm)) {
+        seen.add(norm);
+        uniqueIngredients.push(i);
+      }
+    });
 
-    console.log("Ingredients Array:", ingredientsArray);
+    console.log("Ingredients Array:", uniqueIngredients);
 
-    if (ingredientsArray.length === 0) {
+    if (uniqueIngredients.length === 0) {
       Alert.alert("No Ingredients Found", "Please try again with a clearer image.");
       return;
     }
 
-    // Send array to backend instead of single string
     const response = await axios.post(
-      "https://foodingrescanerbackend.onrender.com/api/scan-text",
-      // "http://192.168.1.119:5000/api/scan-text",
-      { 
-        ingredients: ingredientsArray   // ← changed key name to make it clear
-        // or keep { text: fullText } if backend expects string — your choice
-      }
+      // "https://foodingrescanerbackend.onrender.com/api/scan-text",
+      "http://192.168.1.105:5000/api/scan-text",
+      { text: uniqueIngredients.join(", ") }
+    );
+
+    console.log("Backend Response:", response.data);
+
+    // Normalize missing to always be strings
+    const normalizedMissing = (response.data.missing || []).map((item) =>
+      typeof item === 'string' ? item : item.name || JSON.stringify(item)
     );
 
     setFound(response.data.found || []);
-    setMissing(response.data.missing || []);
+    setMissing(normalizedMissing);
     setAppState("results");
-
   } catch (error) {
     console.error("OCR / Upload Error:", error);
     Alert.alert("Error", "Failed to scan text. Please try again.");
@@ -287,8 +304,8 @@ const uploadImage = async () => {
   // ─── Add missing ingredients ───
   const addAllMissing = async () => {
     try {
-      await axios.post("https://foodingrescanerbackend.onrender.com/api/add-ingredient", {
-      // await axios.post("http://192.168.1.119:5000/api/add-ingredient", {
+      // await axios.post("https://foodingrescanerbackend.onrender.com/api/add-ingredient", {
+      await axios.post("http://192.168.1.105:5000/api/add-ingredient", {
         ingredients: missing,
       });
 
@@ -344,7 +361,25 @@ const uploadImage = async () => {
         contentContainerStyle={styles.scrollContent}
       >
         {/* Header */}
-        <Text style={styles.title}>🔍 Ingredient Scanner</Text>
+        <View
+  style={{
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  }}
+>
+  {/* Left - Home Button */}
+
+  {/* Center - Title */}
+  <View style={{ flex: 1, alignItems: "start" }}>
+    <Text style={styles.title}>🔍 Ingredient Scanner</Text>
+  </View>
+
+  {/* Right - Menu */}
+  <InfoMenu />
+</View>
 
         {/* Image Preview */}
         {image && (
