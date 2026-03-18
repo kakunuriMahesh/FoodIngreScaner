@@ -48,3 +48,147 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+
+<!--  reduse the app size  -->
+
+Got it! If you want to **reduce the app size** without drastically changing your project or updating packages, here are **simpler, safer** actions that can help without the risk of breaking things. 😊
+
+### 1. **Enable Hermes (if not already enabled)**
+
+Hermes is a JavaScript engine optimized for React Native, and it can significantly reduce your app size.
+
+#### How to enable Hermes:
+
+1. Open **`app.json`** or **`app.config.js`**.
+
+2. Make sure you have the following setting:
+
+   ```json
+   {
+     "expo": {
+       "jsEngine": "hermes"
+     }
+   }
+   ```
+
+3. Rebuild your app with `npx expo build:android` or `npx expo build:ios` (if using EAS Build, use `npx eas build`).
+
+Hermes will automatically shrink your JavaScript bundle, reducing your app size.
+
+---
+
+### 2. **Compress and Optimize Images**
+
+If you're using large images (e.g., PNGs or JPGs), converting them to **WebP** format can drastically reduce their size without much quality loss.
+
+#### How to compress images:
+
+1. **Use online tools** like [TinyPNG](https://tinypng.com) or [Squoosh](https://squoosh.app) to convert images to WebP.
+2. Use **`expo-asset`** to handle assets:
+
+   ```bash
+   expo install expo-asset
+   ```
+
+   When using images, make sure you’re using compressed formats and manage them using **`expo-asset`** for better bundling.
+
+---
+
+### 3. **Remove Unused Assets and Dependencies**
+
+If you have images, fonts, or libraries you're not using, removing them can help reduce the app size.
+
+#### How to check for unused assets:
+
+* Look through your **`assets`** folder and remove any unused image files.
+* Run `expo doctor` to detect unused dependencies and remove them manually.
+
+#### Remove unused packages:
+
+1. Run `npm ls --depth=0` to list all installed packages.
+2. Uninstall any packages that you don't need:
+
+   ```bash
+   npm uninstall <package-name>
+   ```
+
+---
+
+### 4. **Use SVGs for Icons Instead of PNGs**
+
+Switch from PNG/JPG icons to **SVG** icons. SVG files are smaller and more flexible.
+
+To use **React Native SVG**, install the library:
+
+```bash
+expo install react-native-svg
+```
+
+Then replace PNGs with SVG components.
+
+---
+
+### 5. **Remove Console Logs and Debugging Code**
+
+Debugging code like `console.log` can increase your bundle size, especially in production.
+
+#### How to remove console logs:
+
+1. Install `babel-plugin-transform-remove-console`:
+
+   ```bash
+   npm install babel-plugin-transform-remove-console --save-dev
+   ```
+
+2. In **`babel.config.js`**, add this:
+
+   ```javascript
+   module.exports = {
+     presets: ['babel-preset-expo'],
+     plugins: ['transform-remove-console'],
+   };
+   ```
+
+This will remove all `console.log` statements from your production build.
+
+---
+
+### 6. **Use Production Build for Distribution**
+
+Make sure you’re using the **production build** rather than a development build, which can be much larger.
+
+Run:
+
+```bash
+npx expo build:android
+npx expo build:ios
+```
+
+Production builds are optimized, whereas development builds include extra code for debugging and testing.
+
+---
+
+### 7. **Use `expo-splash-screen` for Custom Splash Screens**
+
+If you have a custom splash screen with large images, consider using **`expo-splash-screen`** for optimized splash screen handling.
+
+```bash
+expo install expo-splash-screen
+```
+
+This way, the splash screen assets are handled more efficiently.
+
+---
+
+### Summary: Low-risk actions to reduce app size
+
+1. **Enable Hermes engine** for JavaScript size reduction.
+2. **Compress images** and use **WebP** for reduced size.
+3. **Remove unused assets** and **dependencies**.
+4. Use **SVGs** instead of PNGs for icons.
+5. **Remove console logs** with Babel plugin.
+6. Always build in **production mode** to reduce bundle size.
+
+These actions should help you shrink the app size without having to touch critical package versions. Let me know if you need more details on any step! 😊
+

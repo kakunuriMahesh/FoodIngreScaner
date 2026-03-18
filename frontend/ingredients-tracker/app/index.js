@@ -95,118 +95,6 @@ export default function Scan() {
     openCamera();
   }, []);
 
-
-
-  // ─── Upload to backend ───
-  // const uploadImage = async () => {
-  //   try {
-  //     setLoading(true);
-
-  //     const formData = new FormData();
-  //     formData.append("image", {
-  //       uri: image,
-  //       type: "image/jpeg",
-  //       name: "photo.jpg",
-  //     });
-
-  //     const response = await axios.post(
-  //       // "http://192.168.1.114:5000/api/scan",
-  //       "http://10.32.30.172:5000/api/scan",
-  //       formData,
-  //       {
-  //         headers: { "Content-Type": "multipart/form-data" },
-  //       }
-  //     );
-
-  //     setFound(response.data.found || []);
-  //     setMissing(response.data.missing || []);
-  //     setAppState("results");
-  //   } catch (error) {
-  //     console.log("Upload Error:", error);
-  //     Alert.alert("Error", "Failed to scan image. Please try again.");
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
-//   const uploadImage = async () => {
-//   try {
-//     setLoading(true);
-
-//     // 🔹 Run OCR on device
-//     const ocrResult = await MlkitOcr.detectFromUri(image);
-
-//     let extractedText = "";
-
-//     ocrResult.forEach(block => {
-//       extractedText += block.text + " ";
-//     });
-
-//     console.log("Extracted Text:", extractedText);
-
-//     if (!extractedText.trim()) {
-//       Alert.alert("No Text Found", "Please try again with clearer image.");
-//       setLoading(false);
-//       return;
-//     }
-
-//     // 🔹 Send extracted TEXT (not image) to backend
-//     const response = await axios.post(
-//       // "http://10.32.30.172:5000/api/scan-text", // <-- change backend route
-//       "https://foodingrescanerbackend.onrender.com/api/scan-text",
-//       {
-//         text: extractedText,
-//       }
-//     );
-
-//     setFound(response.data.found || []);
-//     setMissing(response.data.missing || []);
-//     setAppState("results");
-
-//   } catch (error) {
-//     console.log("OCR Error:", error);
-//     Alert.alert("Error", "Failed to scan text. Please try again.");
-//   } finally {
-//     setLoading(false);
-//   }
-// };
-// const uploadImage = async () => {
-//   try {
-//     setLoading(true);
-
-//     const ocrResult = await MlkitOcr.detectFromUri(image);
-//     console.log("OCR Result:", JSON.stringify(ocrResult, null, 2));
-
-//     let extractedText = "";
-
-//     ocrResult?.blocks?.forEach(block => {
-//       extractedText += block.text + " ";
-//     });
-
-//     console.log("Extracted Text:", extractedText);
-
-//     if (!extractedText.trim()) {
-//       Alert.alert("No Text Found", "Please try again with clearer image.");
-//       return;
-//     }
-
-//     const response = await axios.post(
-//       "https://foodingrescanerbackend.onrender.com/api/scan-text",
-//       {
-//         text: extractedText,
-//       }
-//     );
-
-//     setFound(response.data.found || []);
-//     setMissing(response.data.missing || []);
-//     setAppState("results");
-
-//   } catch (error) {
-//     console.log("OCR Error:", error);
-//     Alert.alert("Error", "Failed to scan text. Please try again.");
-//   } finally {
-//     setLoading(false);
-//   }
-// };
 const uploadImage = async () => {
   try {
     setLoading(true);
@@ -373,8 +261,12 @@ const uploadImage = async () => {
   {/* Left - Home Button */}
 
   {/* Center - Title */}
-  <View style={{ flex: 1, alignItems: "start" }}>
-    <Text style={styles.title}>🔍 Ingredient Scanner</Text>
+  <View style={{ flex: 1, flexDirection: "row", alignItems: "start" }}>
+    <Image
+      source={require("../assets/images/icon.png")}
+      style={{ width: 32, height: 32, marginBottom: -4 }}
+    />
+    <Text style={styles.title}>Ingredient Scanner</Text>
   </View>
 
   {/* Right - Menu */}
@@ -553,7 +445,7 @@ const styles = StyleSheet.create({
 
   // ─── Header ───
   title: {
-    fontSize: 26,
+    fontSize: 20,
     fontWeight: "bold",
     color: "#1a1a2e",
     marginBottom: 20,
